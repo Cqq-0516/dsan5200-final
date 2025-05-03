@@ -1,0 +1,34 @@
+project:
+  type: website
+  resources:
+    - data/**
+
+website:
+  title: "A Glance at the US Housing & Rental Market"
+  navbar:
+    left:
+      - text: Home
+        href: index.html
+      - text: Data & Methods
+        href: data-methods.html
+      - text: Factors
+        menu:
+          - text: Scatter Matrix
+            href: factors/scatter-matrix.html
+          - text: Dual Bubble Chart
+            href: factors/dual-bubble.html
+          - text: Grouped Boxplots
+            href: factors/group-box.html
+          - text: Parallel Coordinates
+            href: factors/parallel-coords.html
+      - text: Conclusions
+        href: conclusion.html
+
+format:
+  html:
+    theme: cosmo
+    css: styles.css
+    toc: true
+    self-contained: false
+    execute:
+      ojs: true

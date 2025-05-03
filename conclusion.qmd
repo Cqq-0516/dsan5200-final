@@ -1,0 +1,39 @@
+---
+title: "Conclusions & Recommendations"
+format:
+  html:
+    css: styles.css
+---
+
+# Conclusions
+
+After exploring U.S. metro-area data from 2015 to 2023, we arrive at four main take-aways:
+
+1. **Home Values Drive Ownership**  
+   Metropolitan areas with higher average home values consistently show higher homeownership rates, indicating that rising property prices both reflect and reinforce local buying power.
+
+2. **Rent Affordability Shapes Rental Markets**  
+   Rental rate correlates most strongly with renter affordability and median income tiers. Younger adults (25–34) face the steepest rent burdens, driving up overall rental rates in those MSAs.
+
+3. **Education Splits the Market**  
+   Areas with a larger share of residents holding a bachelor’s degree or higher have significantly higher homeownership rates and lower rental rates compared to low-education areas.
+
+4. **Macroeconomic Influences Vary**  
+   - **Inflation (CPI):** Higher CPI periods are modestly associated with increased rental activity, as buyers delay purchases.  
+   - **Unemployment:** Spikes in unemployment correlate with short-term dips in homeownership, though with a lag of about one year.
+
+# Recommendations
+
+- **For Policymakers**  
+  - Implement targeted down-payment assistance or favorable mortgage terms in high-price MSAs to bolster first-time buyers.  
+  - Expand rental vouchers and enforce rent‐stabilization measures in markets where renter affordability falls below 30% of income.
+
+- **For Urban Planners**  
+  - Increase supply of multifamily housing near transit and job centers, especially in high-demand age cohorts (25–34).  
+  - Incentivize mixed-income developments to avoid displacement in rapidly gentrifying neighborhoods.
+
+- **For Households & First-Time Buyers**  
+  - Monitor macro trends (inflation, unemployment) when locking in mortgage rates—consider fixed-rate loans during low CPI volatility.  
+  - Leverage education or income-based programs (e.g., teacher/home-buyer credits) to access lower mortgage rates.
+
+---

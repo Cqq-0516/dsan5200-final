@@ -1,0 +1,160 @@
+---
+title: "Factors: MortgageRate, GDP and Non-Single Household"
+format: html
+---
+
+```{=html}
+<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+```
+
+Parallel coordinates are ideal for tracing multiple metrics over time or across categories. In this chart, we track three key drivers:
+
+1. **Mortgage Rate** (annual average)  
+2. **GDP Growth** (year-over-year %)  
+3. **Non-Single Household Share** (percentage of multi-person households)
+
+Each line represents a year. Drag the point to see how the rental rate and homeownership rate changes yearly according to the change of other metrics. The accompanying pie chart dynamically updates to show each metric’s relative contribution in the selected year, helping you see how economic cycles and demographic shifts coincide with housing trends.
+
+<!-- Load D3.js v7 -->
+<script src="https://d3js.org/d3.v7.min.js"></script>
+
+<!-- Main chart title -->
+<h2 style="text-align:center;">Normalized Metrics vs Year</h2>
+
+<!-- Chart containers -->
+<div style="display:flex; justify-content:center; gap:40px;">
+  <div id="line-chart"></div>
+  <div id="pie-chart"></div>
+</div>
+
+<script>
+d3.csv("../data/All_merged.csv", d3.autoType).then(raw => {
+  // aggregate & normalize
+  const nest = d3.rollup(raw, v => ({
+    RentalRate:        d3.mean(v, d => d.RentalRate),
+    HomeownershipRate: d3.mean(v, d => d.HomeownershipRate),
+    MortgageRate:      d3.mean(v, d => d.MortgageRate),
+    GDP:               d3.mean(v, d => d.Nominal_GDP_TrillionUSD),
+    NonSingle:         d3.mean(v, d => d.NonSingleHouseholdRate)
+  }), d => d.Year);
+  let data = Array.from(nest, ([Year, vals]) => ({ Year, ...vals }));
+  data.sort((a,b) => a.Year - b.Year);
+
+  const metrics = ["MortgageRate","GDP","NonSingle"];
+  metrics.forEach(k => {
+    const arr = data.map(d => d[k]), min = d3.min(arr), max = d3.max(arr);
+    data.forEach(d => d[k] = (d[k] - min) / (max - min));
+  });
+
+  const W=600, H=400, m={top:40,right:20,bottom:50,left:60},
+        w=W-m.left-m.right, h=H-m.top-m.bottom;
+
+  const svg = d3.select("#line-chart").append("svg")
+      .attr("width",W).attr("height",H)
+    .append("g").attr("transform",`translate(${m.left},${m.top})`);
+
+  const years = data.map(d=>d.Year);
+  const x = d3.scalePoint().domain(years).range([0,w]).padding(0.5);
+  const y = d3.scaleLinear().domain([0,1]).range([h,0]);
+
+  // axes
+  svg.append("g").attr("transform",`translate(0,${h})`)
+    .call(d3.axisBottom(x).tickFormat(d3.format("d")));
+  svg.append("g").call(d3.axisLeft(y));
+
+  // axis labels
+  svg.append("text")
+    .attr("x", w/2).attr("y", h + m.bottom - 10)
+    .attr("text-anchor","middle").text("Year");
+  svg.append("text")
+    .attr("transform",`translate(${-m.left+20},${h/2}) rotate(-90)`)
+    .attr("text-anchor","middle").text("Normalized Value");
+
+  // line generator
+  const lineGen = k => d3.line()
+    .x(d=>x(d.Year)).y(d=>y(d[k]));
+
+  // colors
+  const colorLine = {
+    MortgageRate:"#4E79A7",
+    GDP:         "#F28E2B",
+    NonSingle:   "#59A14F"
+  };
+
+  // draw lines
+  metrics.forEach(k => {
+    svg.append("path")
+      .datum(data)
+      .attr("fill","none")
+      .attr("stroke",colorLine[k])
+      .attr("stroke-width",2)
+      .attr("d", lineGen(k));
+  });
+
+  // focus points
+  const focus = svg.selectAll(".focus-point")
+    .data(metrics).enter().append("circle")
+      .attr("class","focus-point")
+      .attr("r",6)
+      .attr("fill",d=>colorLine[d])
+      .attr("cx",d=>x(data[0].Year))
+      .attr("cy",d=>y(data[0][d]));
+
+  // pie setup
+  const pieW=300,pieH=300,r=100;
+  const pieSvg = d3.select("#pie-chart").append("svg")
+      .attr("width",pieW).attr("height",pieH)
+    .append("g").attr("transform",`translate(${pieW/2},${pieH/2})`);
+  const pieGen = d3.pie().value(d=>d.value).sort(null);
+  const arcGen = d3.arc().innerRadius(0).outerRadius(r);
+
+  function arcTween(a){
+    const i=d3.interpolate(this._current,a);
+    this._current=i(0);
+    return t=>arcGen(i(t));
+  }
+
+  function updatePie(year){
+    const d = data.find(d=>d.Year===year),
+          vals=[{name:"Rental",value:d.RentalRate},{name:"Ownership",value:d.HomeownershipRate}],
+          arcs=pieGen(vals);
+
+    // slices
+    const paths = pieSvg.selectAll("path").data(arcs);
+    paths.enter().append("path")
+      .attr("fill",(d,i)=> i===0?"#DCBB5E":"#17084A")
+      .each(function(d){ this._current=d; })
+      .on("mouseover",function(){ d3.select(this).attr("opacity",0.7); })
+      .on("mouseout",function(){ d3.select(this).attr("opacity",1); })
+    .merge(paths).transition().duration(750).attrTween("d",arcTween);
+    paths.exit().remove();
+
+    // labels in red
+    const labels = pieSvg.selectAll("text").data(arcs);
+    labels.enter().append("text")
+      .attr("dy","0.35em")
+      .attr("text-anchor","middle")
+      .style("fill","red")
+    .merge(labels).transition().duration(750)
+      .attr("transform",d=>`translate(${arcGen.centroid(d)})`)
+      .text(d=>`${d.data.name} ${((d.data.value/d3.sum(vals,v=>v.value))*100).toFixed(1)}%`);
+    labels.exit().remove();
+  }
+
+  updatePie(data[0].Year);
+
+  // drag overlay
+  svg.append("rect")
+    .attr("width",w).attr("height",h)
+    .attr("fill","none").attr("pointer-events","all")
+    .call(d3.drag().on("drag",event=>{
+      const mx=event.x-m.left;
+      let nearest=data[0],md=Infinity;
+      data.forEach(d=>{ const dx=Math.abs(x(d.Year)-mx); if(dx<md){md=dx;nearest=d;} });
+      focus.attr("cx",x(nearest.Year)).attr("cy",d=>y(nearest[d]));
+      updatePie(nearest.Year);
+    }));
+});
+</script>
+

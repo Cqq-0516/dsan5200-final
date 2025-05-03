@@ -1,0 +1,115 @@
+---
+title: "Factors: Home value and Total home sales"
+format: html
+---
+
+```{=html}
+<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+```
+
+Housing markets are inherently multidimensional. In this scatter-matrix view, we invite you to explore how two fundamental metrics—**home value** and **total home sales**—relate to ownership and rental rates across U.S. metros from 2015 to 2023.
+
+- **Overview** shows every pairwise comparison at once, helping you spot clusters and outliers.  
+- Switch to **Home Value vs Ownership** to see whether pricier markets tend to own more or rent more.  
+- Flip to **Home Value vs Rental** to examine how rental demand shifts with rising home prices.  
+- **Sales vs Ownership** and **Sales vs Rental** expose how transaction volumes correlate with each tenure choice.
+
+🔍 Hover over any point to drill into the data for a specific city and year. Use the radio buttons above to jump between views and uncover hidden patterns.
+
+<div id="view-controls" style="margin-bottom:10px;">
+  <style>
+    #view-controls label { display: block; margin-bottom: 5px; }
+  </style>
+  <label><input type="radio" name="view" value="Overview" checked> Overview</label>
+  <label><input type="radio" name="view" value="Home Value vs Ownership"> Home Value vs Ownership</label>
+  <label><input type="radio" name="view" value="Home Value vs Rental"> Home Value vs Rental</label>
+  <label><input type="radio" name="view" value="Sales vs Ownership"> Sales vs Ownership</label>
+  <label><input type="radio" name="view" value="Sales vs Rental"> Sales vs Rental</label>
+</div>
+
+<div id="matrix" style="width:800px; height:800px;"></div>
+
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script src="https://d3js.org/d3-contour.v2.min.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded",function(){
+  d3.csv("../data/All_merged.csv",d3.autoType).then(data=>{
+    const combos=[
+      {x:"HomeValue_MillionUSD",y:"HomeownershipRate",name:"Home Value vs Ownership",color:"#17084A",xLabel:"Home Value (Million USD)",yLabel:"Ownership Rate"},
+      {x:"HomeValue_MillionUSD",y:"RentalRate",       name:"Home Value vs Rental",    color:"#DCBB5E",xLabel:"Home Value (Million USD)",yLabel:"Rental Rate"},
+      {x:"SalesTotal_Million",  y:"HomeownershipRate",name:"Sales vs Ownership",     color:"#17084A",xLabel:"Sales Total (Million USD)",yLabel:"Ownership Rate"},
+      {x:"SalesTotal_Million",  y:"RentalRate",       name:"Sales vs Rental",        color:"#DCBB5E",xLabel:"Sales Total (Million USD)",yLabel:"Rental Rate"}
+    ];
+    const width=800,height=800,margin={top:100,left:80,right:80,bottom:80,between:100},
+          cellSize=(width-margin.left-margin.right-margin.between)/2;
+    const svg=d3.select("#matrix").append("svg").attr("viewBox",[0,0,width,height]);
+    const defs=svg.append("defs"),g=svg.append("g");
+    combos.forEach((c,i)=>{
+      const row=Math.floor(i/2),col=i%2,
+            xOff=margin.left+col*(cellSize+margin.between),
+            yOff=margin.top+row*(cellSize+margin.between),
+            xMin=d3.min(data,d=>d[c.x]),xMax=d3.max(data,d=>d[c.x]),
+            yMin=d3.min(data,d=>d[c.y]),yMax=d3.max(data,d=>d[c.y]);
+      const xScale=d3.scaleLinear().domain([xMin,xMax]).nice().range([0,cellSize]);
+      const yScale=d3.scaleLinear().domain([yMin,yMax]).nice().range([cellSize,0]);
+      const clipId=`clip-${i}`;
+      defs.append("clipPath").attr("id",clipId)
+        .append("rect").attr("width",cellSize).attr("height",cellSize);
+      const cell=g.append("g").attr("transform",`translate(${xOff},${yOff})`);
+      const plot=cell.append("g").attr("clip-path",`url(#${clipId})`);
+      // density
+      const density=d3.contourDensity()
+        .x(d=>xScale(d[c.x])).y(d=>yScale(d[c.y]))
+        .size([cellSize,cellSize]).bandwidth(cellSize*0.1)(data);
+      plot.selectAll("path").data(density).join("path")
+        .attr("d",d3.geoPath()).attr("fill",c.color).attr("opacity",0.2);
+      // points
+      plot.selectAll("circle").data(data).join("circle")
+        .attr("cx",d=>xScale(d[c.x])).attr("cy",d=>yScale(d[c.y]))
+        .attr("r",3).attr("fill",c.color).attr("opacity",0.7);
+      // bottom x-axis + label
+      cell.append("g")
+        .attr("transform",`translate(0,${cellSize})`)
+        .call(d3.axisBottom(xScale).ticks(6));
+      cell.append("text")
+        .attr("x",cellSize/2).attr("y",cellSize+40)
+        .attr("text-anchor","middle").attr("font-weight","bold")
+        .text(c.xLabel);
+      // left y-axis + label
+      cell.append("g").call(d3.axisLeft(yScale).ticks(6));
+      cell.append("text")
+        .attr("transform",`translate(${-50},${cellSize/2}) rotate(-90)`)
+        .attr("text-anchor","middle").attr("font-weight","bold")
+        .text(c.yLabel);
+      // right y-axis only for right column (mirror)
+      if(col===1){
+        cell.append("g")
+          .attr("transform",`translate(${cellSize},0)`)
+          .call(d3.axisRight(yScale).ticks(6));
+      }
+      // title
+      cell.append("text")
+        .attr("x",cellSize/2).attr("y",-margin.top/6)
+        .attr("text-anchor","middle").attr("font-size","16px")
+        .attr("font-weight","bold").text(c.name);
+    });
+    // zoom + radio
+    const zoom=d3.zoom().scaleExtent([1,4]).on("zoom",({transform})=>g.attr("transform",transform));
+    svg.call(zoom);
+    const transforms=[["Overview",d3.zoomIdentity]]
+      .concat(combos.map((c,i)=>{
+        const row=Math.floor(i/2),col=i%2,
+              cx=margin.left+col*(cellSize+margin.between)+cellSize/2,
+              cy=margin.top+row*(cellSize+margin.between)+cellSize/2,
+              k=0.9*(width-margin.left-margin.right)/cellSize,
+              tx=width/2-k*cx,ty=height/2-k*cy;
+        return [c.name,d3.zoomIdentity.translate(tx,ty).scale(k)];
+      }));
+    d3.selectAll('input[name="view"]').on("change",function(){
+      const t=transforms.find(d=>d[0]===this.value)[1];
+      svg.transition().duration(750).call(zoom.transform,t);
+    });
+  }).catch(console.error);
+});
+</script>

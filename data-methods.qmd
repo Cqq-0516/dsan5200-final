@@ -1,0 +1,25 @@
+```{python}
+#| code-fold: true
+import pandas as pd
+import panel as pn
+
+# 启用 Panel 的 Tabulator 扩展
+pn.extension('tabulator')
+
+# 读取你的 CSV 文件
+df = pd.read_csv('data/All_merged.csv')
+
+# 创建一个可排序、可分页的交互式表格
+table = pn.widgets.Tabulator(
+    df,
+    pagination='local',     # 本地分页
+    page_size=10,           # 每页显示 10 行
+    layout='fit_columns',   # 列宽自适应
+    selectable='checkbox',  # 支持行多选
+    show_index=False        # 不显示行号
+)
+
+# 渲染表格
+table
+
+```

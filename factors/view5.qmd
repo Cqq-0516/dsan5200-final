@@ -1,0 +1,176 @@
+## View 5: Suitability choropleth 
+
+Imagine you are a graduate student deciding where to move in the United States. Ideally, you seek:
+
+- Lower living costs,
+- Strong economic growth,
+- Good wage prospects.
+
+Instead of automatically picking major cities (which often come with high salaries but also unaffordable housing), or random small towns (which may have limited economic growth and lower wages), you can now use our choropleth map to make a data-driven choice.
+
+We created a choropleth of the United States, where each MSA is represented as a point colored from red to green based on a new feature we developed called "Suitability."
+
+- Green: most suitable areas for personal and professional development.
+- Red: least suitable areas.
+
+The Suitability score was sort based on:
+Housing affordability rankings,
+GDP (as an indicator of overall economic health),
+Income per capita (wage levels),
+Growth trends of each above from 2014 to 2023.
+
+```{python}
+#| code-fold: true
+import pandas as pd
+import matplotlib.pyplot as plt
+import numpy as np
+import geopandas as gpd
+import plotly.graph_objects as go
+df = pd.read_csv("../data/affordability_with_rgdp_income.csv")
+df_23 = df[df["Year"] == 2023].drop(columns="Year")
+df_15 = df[df["Year"] == 2015].drop(columns="Year")
+df_cmp = df_23.merge(
+    df_15,
+    on="RegionName",
+    suffixes=("_2023", "_2015")
+)
+
+for col in ["HomeownerAffordability", "RenterAffordability", "rgdp", "income_per_capita"]:
+    df_cmp[f"pchange_{col.lower()}"] = (
+        df_cmp[f"{col}_2023"] - df_cmp[f"{col}_2015"]) / df_cmp[f"{col}_2015"]
+    
+df_homeowner_sorted = df_cmp.sort_values(
+    by=["HomeownerAffordability_2023","rgdp_2023","income_per_capita_2023","pchange_homeowneraffordability","pchange_rgdp","pchange_income_per_capita"],
+    ascending=[ True, False,  False, True, False, False ]
+)
+df_homeowner_sorted = df_homeowner_sorted.reset_index(drop=True)
+df_homeowner_sorted["rank"] = df_homeowner_sorted.index + 1
+df_renter_sorted = df_cmp.sort_values(
+    by=["RenterAffordability_2023","rgdp_2023","income_per_capita_2023","pchange_renteraffordability","pchange_rgdp","pchange_income_per_capita"],
+    ascending=[ True, False,  False, True, False, False ]
+)
+df_renter_sorted = df_renter_sorted.reset_index(drop=True)
+df_renter_sorted["rank"] = df_renter_sorted.index + 1
+cbsa = gpd.read_file("../data/cb_2023_us_cbsa_20m/cb_2023_us_cbsa_20m.shp")
+cbsa = cbsa.to_crs(epsg=4326)
+cbsa["centroid"] = cbsa.geometry.centroid
+df_centroids = pd.DataFrame({
+    "geofips": cbsa["GEOID"],           
+    "name":    cbsa["NAME"],            
+    "latitude":  cbsa.centroid.y,
+    "longitude": cbsa.centroid.x
+})
+df_centroids['geofips'] = df_centroids['geofips'].astype(int)
+df_centroids.head()
+df_homeowner_sorted = df_homeowner_sorted.merge(df_centroids, left_on = "Geofips_2015", right_on="geofips")
+df_renter_sorted = df_renter_sorted.merge(df_centroids, left_on = "Geofips_2015", right_on="geofips")
+
+import geopandas as gpd
+import matplotlib.pyplot as plt
+from shapely.geometry import Point
+import numpy as np
+import matplotlib.patheffects as pe
+import folium
+import plotly.express as px
+gdf_r = gpd.GeoDataFrame(
+    df_renter_sorted,
+    geometry=gpd.points_from_xy(
+        df_renter_sorted.longitude,
+        df_renter_sorted.latitude
+    ),
+    crs="EPSG:4326"
+)
+
+gdf_h = gpd.GeoDataFrame(
+    df_homeowner_sorted,
+    geometry=gpd.points_from_xy(
+        df_homeowner_sorted.longitude,
+        df_homeowner_sorted.latitude
+    ),
+    crs="EPSG:4326"
+)
+
+renter_trace = go.Scattergeo(
+    lon = gdf_r.geometry.x,
+    lat = gdf_r.geometry.y,
+    mode = 'markers',
+    marker = dict(
+        size=5,
+        color=gdf_r["rank"],
+        colorscale="Viridis",
+        cmin=gdf_r["rank"].min(),
+        cmax=gdf_r["rank"].max(),
+        colorbar=dict(
+        tickmode="array",
+        tickvals=[gdf_r['rank'].max(), gdf_r['rank'].min()],
+        ticktext=["Least suitable", "Most suitable"],
+        tickfont=dict(size=14),
+        title=""
+    )
+    ),
+    hovertext=gdf_r["RegionName"],
+    customdata=np.stack([gdf_r[["RenterAffordability_2023","rgdp_2023","income_per_capita_2023"]]], axis=-1),
+    hovertemplate="<b>%{hovertext}</b><br>Rank: %{marker.color}<br>Affordability 2023: %{customdata[0]:.2f}<br>Real GDP 2023: %{customdata[1]:.2f}<br>Income per capita 2023: %{customdata[2]:.2f}<extra></extra>",
+    name="Renter Suitability",
+    visible=True
+)
+
+homeowner_trace = go.Scattergeo(
+    lon = gdf_h.geometry.x,
+    lat = gdf_h.geometry.y,
+    mode = 'markers',
+    marker = dict(
+        size=5,
+        color=gdf_h["rank"],
+        colorscale="Viridis",
+        cmin=gdf_h["rank"].min(),
+        cmax=gdf_h["rank"].max(),
+        colorbar=dict(
+        tickmode="array",
+        tickvals=[gdf_h['rank'].max(), gdf_h['rank'].min()],
+        ticktext=["Least suitable", "Most suitable"],
+        tickfont=dict(size=14),
+        title=""
+    )
+    ),
+    hovertext=gdf_h["RegionName"],
+    customdata=np.stack([gdf_h[["HomeownerAffordability_2023","rgdp_2023","income_per_capita_2023"]]], axis=-1),
+    hovertemplate="<b>%{hovertext}</b><br>Rank: %{marker.color}<br>Affordability 2023: %{customdata[0]:.2f}<br>Real GDP 2023: %{customdata[1]:.2f}<br>Income per capita 2023: %{customdata[2]:.2f}<extra></extra>",
+    name="Homeowner Suitability",
+    visible=False
+)
+
+fig = go.Figure()
+fig.add_trace(renter_trace)
+fig.add_trace(homeowner_trace)
+
+fig.update_layout(
+    updatemenus=[
+        dict(
+            type="buttons",
+            direction="right",
+            x=0.5,
+            y=1,
+            buttons=list([
+                dict(label="Renter Suitability",
+                     method="update",
+                     args=[{"visible": [True, False]},
+                           {"title": "Renter Purchase Suitability Map (Mainland US)"}]),
+                dict(label="Homeowner Suitability",
+                     method="update",
+                     args=[{"visible": [False, True]},
+                           {"title": "Home Owner Purchase Suitability Map (Mainland US)"}]),
+            ]),
+            showactive=True
+        )
+    ]
+)
+
+fig.update_geos(projection_type="albers usa")
+fig.update_layout(
+    title_text="US Housing Suitability Map",
+    margin=dict(l=0, r=0, t=50, b=0)
+)
+
+fig.show()
+```

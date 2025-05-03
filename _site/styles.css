@@ -1,0 +1,103 @@
+/* Pastel Lavender & Yellow Theme */
+
+:root {
+    --color-background: #f9f5ff;    /* light lavender */
+    --color-hero-bg: #fdfd96;       /* pastel yellow */
+    --color-hero-text: #4b0082;     /* indigo */
+    --color-primary: #6a0dad;       /* purple */
+    --color-accent: #f7e8a4;        /* soft yellow */
+    --color-text: #333333;          /* dark grey */
+    --color-link: #6a0dad;
+    --color-link-hover: #4b0082;
+  }
+  
+  body {
+    background-color: var(--color-background);
+    color: var(--color-text);
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    line-height: 1.6;
+    margin: 0;
+    padding: 0;
+  }
+  
+  /* Hero Section */
+  .hero {
+    background-color: var(--color-hero-bg);
+    padding: 4rem 2rem;
+    border-radius: 0 0 1rem 1rem;
+    margin-bottom: 2rem;
+  }
+  .hero h1 {
+    color: var(--color-hero-text);
+    font-size: 2.5rem;
+    margin-bottom: 0.5rem;
+  }
+  .hero p {
+    color: var(--color-primary);
+    font-size: 1.25rem;
+  }
+  
+  /* Top Navigation Bar */
+  .quarto-navbar {
+    background-color: #e6e6fa; /* lavender */
+    padding: 0.5rem 2rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+  .quarto-navbar a {
+    color: var(--color-primary);
+    text-decoration: none;
+    margin-right: 1.5rem;
+    font-weight: 600;
+  }
+  .quarto-navbar a:hover {
+    color: var(--color-link-hover);
+  }
+  
+  /* Columns Layout */
+  .columns {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2rem;
+    margin-bottom: 2rem;
+  }
+  .column {
+    flex: 1;
+    min-width: 220px;
+  }
+  
+  /* Section Headings */
+  h2, h3, h4 {
+    color: var(--color-primary);
+    margin-top: 2rem;
+    margin-bottom: 1rem;
+  }
+  
+  /* Links */
+  a {
+    color: var(--color-link);
+    font-weight: 600;
+  }
+  a:hover {
+    color: var(--color-link-hover);
+    text-decoration: underline;
+  }
+  
+  /* Lists */
+  ul, ol {
+    margin-left: 1.5rem;
+  }
+  
+  /* Footer or Contact */
+  footer {
+    text-align: center;
+    padding: 1rem 0;
+    background-color: var(--color-accent);
+    color: var(--color-primary);
+    font-size: 0.9rem;
+  }
+  
+  /* Interactive Controls (radio buttons, dropdowns) */
+  input[type="radio"], select {
+    accent-color: var(--color-primary);
+  }
+  

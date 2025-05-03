@@ -1,0 +1,136 @@
+---
+title: "Factors: CPI and Unemployment Rate"
+format: html
+---
+
+```{=html}
+<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+```
+
+Bubble charts are perfect for comparing magnitude and category in one glance. Here, our **Dual Bubble Chart** plots rental rate on the x-axis and homeownership rate on the y-axis, with:
+
+- **Bubble size** indicating metro population  
+- **Bubble color** encoding a third factor of your choice (e.g., GDP growth, mortgage rate)
+
+Use the dropdown menu to select which macroeconomic factor drives the color scale. Notice how high-growth, low-rate regions cluster differently than those with weaker economies or steeper borrowing costs. Hover over each bubble to see exact values and the city name.
+
+<style>
+  .controls { text-align: center; margin-bottom: 20px; }
+  .controls label { margin: 0 20px; font-size: 16px; }
+  #chartA, #chartB {
+    width: 90%;
+    height: 350px;
+    margin: 0 auto 50px;
+  }
+</style>
+
+<div class="controls">
+  <label>
+    Rate:
+    <select id="rateSel">
+      <option value="RentalRate">Rental Rate</option>
+      <option value="HomeownershipRate">Homeownership Rate</option>
+    </select>
+  </label>
+  <label>
+    Metric:
+    <select id="metricSel">
+      <option value="CPI">CPI</option>
+      <option value="National_Unemployment">Unemployment Rate</option>
+    </select>
+  </label>
+</div>
+
+<div id="chartA"></div>
+<div id="chartB"></div>
+
+<script src="https://d3js.org/d3.v5.min.js"></script>
+<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+<script>
+d3.csv("../data/All_merged.csv").then(raw => {
+  const data = raw.map(d=>({
+    year: +d.Year,
+    CPI: +d.CPI,
+    National_Unemployment: +d.National_Unemployment,
+    RentalRate: +d.RentalRate,
+    HomeownershipRate: +d.HomeownershipRate,
+    RenterAffordability: +d.RenterAffordability,
+    HomeownerAffordability: +d.HomeownerAffordability
+  }));
+  function aggByYear(xKey,yKey,sizeKey){
+    return d3.nest()
+      .key(d=>d.year)
+      .entries(data)
+      .sort((a,b)=>+a.key - +b.key)
+      .map(g=>{
+        const vals=g.values;
+        return {
+          year: +g.key,
+          x: d3.mean(vals,d=>d[xKey]),
+          y: d3.mean(vals,d=>d[yKey]),
+          size: d3.mean(vals,d=>d[sizeKey])
+        };
+      });
+  }
+  const colorMap = {
+    RentalRate:        "#DCBB5E",
+    HomeownershipRate: "#17084A"
+  };
+  function draw(){
+    const rateKey   = rateSel.value,
+          otherKey  = rateKey==="RentalRate" ? "HomeownershipRate" : "RentalRate",
+          affordKey = rateKey==="RentalRate" ? "RenterAffordability" : "HomeownerAffordability",
+          metricKey = metricSel.value;
+    // swap: x=rate, y=metric
+    const A = aggByYear(rateKey, metricKey, affordKey),
+          B = aggByYear(otherKey, metricKey, affordKey),
+          maxSize = d3.max(A.concat(B), d=>d.size);
+    function makeTrace(arr,key){
+      return {
+        x: arr.map(d=>d.x),
+        y: arr.map(d=>d.y),
+        mode: "markers",
+        marker: {
+          size: arr.map(d=>Math.sqrt(d.size/maxSize)*40 + 10),
+          color: colorMap[key],
+          opacity: 0.6,
+          line: { width:1, color:"#444" }
+        },
+        text: arr.map(d=>
+          `Year: ${d.year}`+
+          `<br>${rateSel.value.replace(/([A-Z])/g," $1")}: ${d.x.toFixed(2)}`+
+          `<br>${metricKey}: ${d.y.toFixed(2)}`+
+          `<br>Afford.: ${d.size.toFixed(2)}`
+        ),
+        hoverinfo:"text",
+        name: key,
+        showlegend:false
+      };
+    }
+    const traceA = makeTrace(A, rateKey),
+          traceB = makeTrace(B, otherKey);
+    const layoutA = {
+      title: { text:`${rateSel.value.replace(/([A-Z])/g," $1")} vs ${metricSel.value}`, x:0.5 },
+      xaxis: { title: rateSel.value.replace(/([A-Z])/g," $1"), automargin:true },
+      yaxis: { title: metricSel.value, automargin:true },
+      margin:{l:60,r:50,t:50,b:80},
+      transition:{duration:600,easing:"cubic-in-out"}
+    };
+    const layoutB = {
+      title: { text:`${otherKey.replace(/([A-Z])/g," $1")} vs ${metricSel.value}`, x:0.5 },
+      xaxis: { title: otherKey.replace(/([A-Z])/g," $1"), automargin:true },
+      yaxis: { title: metricSel.value, automargin:true },
+      margin:{l:60,r:50,t:50,b:80},
+      transition:{duration:600,easing:"cubic-in-out"}
+    };
+    Plotly.react("chartA",[traceA],layoutA,{displayModeBar:false});
+    Plotly.react("chartB",[traceB],layoutB,{displayModeBar:false});
+  }
+  const rateSel   = document.getElementById("rateSel"),
+        metricSel = document.getElementById("metricSel");
+  rateSel.addEventListener("change", draw);
+  metricSel.addEventListener("change", draw);
+  draw();
+});
+</script>

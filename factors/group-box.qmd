@@ -1,0 +1,134 @@
+---
+title: "Factors: Income Tier, Education Attainment and Elderly Rate"
+format: html
+---
+
+```{=html}
+<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+```
+
+Boxplots reveal both distribution and variability at a glance. In this **Grouped Boxplot** view, we compare rental and ownership rates across quartiles of a selected factor:
+
+- Choose **Income Tier** to see how low-, mid-, and high-income markets differ in tenure share.  
+- Select **Education Attainment** to investigate whether more highly educated metros rent or own in greater numbers.  
+- Toggle to **Elderly Rate** to understand how an aging population shapes the housing mix.
+
+Each box shows the median, interquartile range, and outliers—helping you answer questions like “Which income group has the widest spread of rental rates?” or “Do high-education cities show consistently higher ownership?”
+
+<style>
+  #box-controls {
+    margin-bottom: 16px;
+    font-family: Arial, sans-serif;
+  }
+  #box-controls label {
+    font-weight: bold;
+    margin-right: 8px;
+  }
+  #box-controls select {
+    padding: 4px 8px;
+    font-size: 14px;
+  }
+  #box-plot {
+    margin: auto;
+  }
+</style>
+
+<div id="box-controls">
+  <label for="group-by">Group by:</label>
+  <select id="group-by">
+    <option value="Income_Tier">Income Tier</option>
+    <option value="Education_Attainment">Education Attainment</option>
+    <option value="ElderlyRate">Elderly Rate</option>
+  </select>
+</div>
+
+<div id="box-plot" style="width:900px; height:600px;"></div>
+
+<script src="https://d3js.org/d3.v5.min.js"></script>
+<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+<script>
+  d3.csv("../data/All_merged.csv").then(function(data) {
+    data.forEach(d => {
+      d.HomeownershipRate          = +d.HomeownershipRate;
+      d.RentalRate                 = +d.RentalRate;
+      d.Bachelors_or_Higher_Rate   = +d.Bachelors_or_Higher_Rate;
+      d.Less_than_High_School_Rate = +d.Less_than_High_School_Rate;
+      d.ElderlyRate                = +d.ElderlyRate;
+    });
+    const colors = {
+      HomeownershipRate: "#17084A",
+      RentalRate:        "#DCBB5E"
+    };
+    let firstDraw = true;
+    function drawBox(groupKey) {
+      let groups, xTitle;
+      if (groupKey === "Income_Tier") {
+        groups = data.map(d => d.Income_Tier);
+        xTitle = "Income Tier";
+      } else if (groupKey === "Education_Attainment") {
+        const arr = data.map(d => d.Bachelors_or_Higher_Rate).sort(d3.ascending);
+        const med = d3.quantile(arr, 0.5);
+        groups = data.map(d =>
+          d.Bachelors_or_Higher_Rate >= med ? "High Education" : "Low Education"
+        );
+        xTitle = "Education Attainment";
+      } else {
+        const arr = data.map(d => d.ElderlyRate).sort(d3.ascending);
+        const q1  = d3.quantile(arr, 1/3);
+        const q2  = d3.quantile(arr, 2/3);
+        groups = data.map(d =>
+          d.ElderlyRate < q1 ? "Low Elderly Rate"
+            : d.ElderlyRate < q2 ? "Mid Elderly Rate"
+            : "High Elderly Rate"
+        );
+        xTitle = "Elderly Rate Segment";
+      }
+      const traces = ["HomeownershipRate","RentalRate"].map(varName => ({
+        type: "box",
+        x: groups,
+        y: data.map(d => d[varName]),
+        name: varName.replace(/([A-Z])/g,' $1').trim(),
+        marker: { color: colors[varName], opacity: 0.4 },
+        line:   { color: colors[varName] },
+        boxpoints: "outliers",
+        hovertemplate:
+          "%{x}<br>" +
+          varName.replace(/([A-Z])/g,' $1').trim() +
+          ": %{y:.3f}<extra></extra>"
+      }));
+      const layout = {
+        title: {
+          text: `Homeownership & Rental Rates vs ${xTitle}`,
+          font: { size: 18 },
+          x: 0.5
+        },
+        xaxis: {
+          title: xTitle,
+          automargin: true
+        },
+        yaxis: {
+          title: "Rate",
+          automargin: true
+        },
+        margin: { l: 80, r: 50, t: 80, b: 80 },
+        boxmode: "group",
+        transition: { duration: 500, easing: "cubic-in-out" },
+        font: { size: 12 }
+      };
+      if (firstDraw) {
+        Plotly.newPlot("box-plot", traces, layout, { responsive: true });
+        firstDraw = false;
+      } else {
+        Plotly.animate(
+          "box-plot",
+          { data: traces },
+          { transition: layout.transition, frame: { duration: 500 } }
+        );
+      }
+    }
+    const sel = document.getElementById("group-by");
+    sel.addEventListener("change", () => drawBox(sel.value));
+    drawBox(sel.value);
+  });
+</script>
